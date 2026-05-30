@@ -8,6 +8,7 @@ from app.services.transcript import get_transcript
 from app.services.metadata import get_metadata
 from app.services.embedder import embed_and_store, delete_session_chunks
 from app.services.session_store import load_sessions, save_sessions
+from app.chains.rag_chain import stream_rag_response
 
 router = APIRouter()
 
@@ -30,8 +31,16 @@ class IngestResponse(BaseModel):
 
 
 @router.get("/health")
-def health_check():
-    return {"status": "ok", "service": "RAG Creator Chat"}
+async def health_check():
+    from app.services.embedder import get_vectorstore
+    vs = get_vectorstore()
+    count = vs._collection.count()
+    return {
+        "status": "ok",
+        "service": "RAG Creator Chat",
+        "chunks_in_db": count,
+        "active_sessions": len(sessions),
+    }
 
 
 @router.post("/ingest", response_model=IngestResponse)
@@ -103,3 +112,54 @@ async def cleanup_session(session_id: str):
     sessions.pop(session_id, None)
     save_sessions(sessions)
     return {"status": "deleted"}
+
+
+# ─── Chat ────────────────────────────────────────────────────────────────────
+
+class ChatRequest(BaseModel):
+    session_id: str
+    question: str
+
+
+@router.post("/chat")
+async def chat(req: ChatRequest):
+    """
+    Stream a RAG response for a question about the two videos.
+    Returns Server-Sent Events (SSE).
+    """
+    if req.session_id not in sessions:
+        raise HTTPException(
+            status_code=404,
+            detail="Session not found. Please ingest videos first."
+        )
+
+    session = sessions[req.session_id]
+
+    async def event_generator():
+        async for chunk in stream_rag_response(
+            question=req.question,
+            session_id=req.session_id,
+            session=session,
+        ):
+            yield chunk
+        # Persist updated chat history after full response
+        save_sessions(sessions)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",   # Disable Nginx buffering
+        },
+    )
+
+
+@router.delete("/chat/{session_id}/history")
+async def clear_history(session_id: str):
+    """Clear chat history for a session without deleting embeddings."""
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    sessions[session_id]["chat_history"] = []
+    save_sessions(sessions)
+    return {"status": "history cleared"}
