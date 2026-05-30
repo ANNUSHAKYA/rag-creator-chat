@@ -19,9 +19,20 @@ def extract_youtube_id(url: str) -> str:
 def get_youtube_transcript(url: str) -> dict:
     video_id = extract_youtube_id(url)
     try:
-        # v1.x API: instantiate the class and call .fetch()
         api = YouTubeTranscriptApi()
-        fetched = api.fetch(video_id)
+        try:
+            # 1. Try to fetch English transcript first
+            fetched = api.fetch(video_id, languages=["en"])
+        except Exception:
+            # 2. Fall back to any available transcript language
+            ts_list = api.list(video_id)
+            fetched = None
+            for t in ts_list:
+                fetched = t.fetch()
+                break
+            if fetched is None:
+                raise ValueError("No transcripts found in any language")
+
         transcript_list = list(fetched)
         full_text = " ".join([t.text for t in transcript_list])
         # Keep timestamped chunks for citation
@@ -35,7 +46,7 @@ def get_youtube_transcript(url: str) -> dict:
             "timed_chunks": chunks_with_time,
             "source": "youtube_transcript_api"
         }
-    except (NoTranscriptFound, CouldNotRetrieveTranscript, Exception):
+    except Exception:
         # Fallback: download audio and run Whisper
         return get_transcript_via_whisper(url, video_id)
 

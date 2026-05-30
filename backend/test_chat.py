@@ -2,8 +2,7 @@ import asyncio
 import httpx
 import json
 
-# Paste a real session_id from your Day 2 test here
-SESSION_ID = "paste-your-session-id-here"
+SESSION_ID = "caa9b958-ae0d-4cd9-bd23-0b9e24852bda"
 
 QUESTIONS = [
     "What is the engagement rate of each video?",

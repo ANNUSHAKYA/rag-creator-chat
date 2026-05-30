@@ -8,7 +8,7 @@ async def test_ingest():
     payload = {
         "video_a_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         "video_a_platform": "youtube",
-        "video_b_url": "https://www.youtube.com/watch?v=9bZkp7q19f0",
+        "video_b_url": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
         "video_b_platform": "youtube",
     }
 
@@ -17,6 +17,11 @@ async def test_ingest():
         r = await client.post("http://localhost:8000/api/ingest", json=payload)
         data = r.json()
 
+        if r.status_code != 200:
+            print(f"Error status: {r.status_code}")
+            print(f"Error detail: {r.text}")
+            return None
+            
         print(f"Session ID: {data['session_id']}")
         print(f"Video A chunks: {data['video_a']['chunks_stored']}")
         print(f"Video B chunks: {data['video_b']['chunks_stored']}")

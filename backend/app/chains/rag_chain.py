@@ -2,6 +2,7 @@ import os
 import json
 from typing import AsyncGenerator, List
 from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.documents import Document
@@ -158,15 +159,25 @@ async def stream_rag_response(
         ("human", "{question}"),
     ])
 
-    # Step 4 — GPT-4o-mini with streaming
-    # Why mini: 8x cheaper than GPT-4o, sufficient for RAG
-    # where retrieved context does the heavy lifting
-    llm = ChatOpenAI(
-        model="gpt-4o-mini",
-        temperature=0.3,        # Low temp: factual, consistent answers
-        streaming=True,
-        openai_api_key=os.getenv("OPENAI_API_KEY"),
-    )
+    # Step 4 — LLM with streaming (gpt-4o-mini or gemini-1.5-flash)
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    openai_key = os.getenv("OPENAI_API_KEY")
+    provider = os.getenv("LLM_PROVIDER", "openai" if openai_key else "gemini")
+
+    if provider == "gemini" and gemini_key:
+        llm = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
+            temperature=0.3,
+            google_api_key=gemini_key,
+            streaming=True
+        )
+    else:
+        llm = ChatOpenAI(
+            model="gpt-4o-mini",
+            temperature=0.3,
+            streaming=True,
+            openai_api_key=openai_key,
+        )
 
     # Step 5 — Format prompt and stream tokens
     full_response = ""

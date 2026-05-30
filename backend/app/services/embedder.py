@@ -2,6 +2,7 @@ import os
 from typing import List, Dict, Any
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
@@ -10,21 +11,37 @@ CHROMA_DIR = os.path.join(os.path.dirname(__file__), "../../.chroma")
 
 def get_embeddings():
     """
-    text-embedding-3-small: $0.02/1M tokens
-    Best cost/quality for RAG at this scale.
-    At 1000 creators/day with ~5000 tokens each = $0.10/day total embedding cost.
+    Get embeddings model. Dynamic fallback/routing to Gemini (Google AI Studio)
+    if GEMINI_API_KEY is present or LLM_PROVIDER is set to gemini.
     """
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    openai_key = os.getenv("OPENAI_API_KEY")
+    provider = os.getenv("LLM_PROVIDER", "openai" if openai_key else "gemini")
+
+    if provider == "gemini" and gemini_key:
+        return GoogleGenerativeAIEmbeddings(
+            model="gemini-embedding-001",
+            google_api_key=gemini_key
+        )
+    
     return OpenAIEmbeddings(
         model="text-embedding-3-small",
-        openai_api_key=os.getenv("OPENAI_API_KEY")
+        openai_api_key=openai_key
     )
+
+def get_chroma_dir() -> str:
+    """Return separate directory for different providers to avoid vector dimension clashes."""
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    openai_key = os.getenv("OPENAI_API_KEY")
+    provider = os.getenv("LLM_PROVIDER", "openai" if openai_key else "gemini")
+    return os.path.join(CHROMA_DIR, provider)
 
 def get_vectorstore() -> Chroma:
     """Return persistent ChromaDB vectorstore."""
     return Chroma(
         collection_name="creator_videos",
         embedding_function=get_embeddings(),
-        persist_directory=CHROMA_DIR
+        persist_directory=get_chroma_dir()
     )
 
 def chunk_transcript(
