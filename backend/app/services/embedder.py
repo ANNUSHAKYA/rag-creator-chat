@@ -53,26 +53,29 @@ CHROMA_DIR = os.path.join(os.path.dirname(__file__), "../../.chroma")
 
 def get_embeddings():
     """
-    Get embeddings model. Dynamic fallback/routing to Gemini (Google AI Studio)
-    if GEMINI_API_KEY is present or LLM_PROVIDER is set to gemini.
+    Get embeddings model. Dynamic fallback/routing to:
+    1. Local CPU (sentence-transformers) by default, or if EMBEDDING_PROVIDER is set to local.
+    2. Gemini (Google AI Studio) if EMBEDDING_PROVIDER is set to gemini.
+    3. OpenAI if EMBEDDING_PROVIDER is set to openai.
     """
-    gemini_key = os.getenv("GEMINI_API_KEY")
-    openai_key = os.getenv("OPENAI_API_KEY")
-    provider = os.getenv("LLM_PROVIDER", "openai" if openai_key else "gemini")
-
-    if provider == "gemini" and gemini_key:
-        return RetryingGoogleEmbeddings(gemini_key)
+    provider = os.getenv("EMBEDDING_PROVIDER", "local")
     
-    return OpenAIEmbeddings(
-        model="text-embedding-3-small",
-        openai_api_key=openai_key
-    )
+    if provider == "openai":
+        return OpenAIEmbeddings(
+            model="text-embedding-3-small",
+            openai_api_key=os.getenv("OPENAI_API_KEY")
+        )
+    elif provider == "gemini":
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        return RetryingGoogleEmbeddings(gemini_key)
+    else:
+        # Default to 100% local, high-performance, unlimited CPU embeddings
+        from langchain_community.embeddings import HuggingFaceEmbeddings
+        return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 def get_chroma_dir() -> str:
     """Return separate directory for different providers to avoid vector dimension clashes."""
-    gemini_key = os.getenv("GEMINI_API_KEY")
-    openai_key = os.getenv("OPENAI_API_KEY")
-    provider = os.getenv("LLM_PROVIDER", "openai" if openai_key else "gemini")
+    provider = os.getenv("EMBEDDING_PROVIDER", "local")
     return os.path.join(CHROMA_DIR, provider)
 
 def get_vectorstore() -> Chroma:
