@@ -46,8 +46,9 @@ export default function IngestForm() {
         video_a: data.video_a.metadata,
         video_b: data.video_b.metadata,
       });
-    } catch (err: any) {
-      setError(err.message ?? "Something went wrong during ingest.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong during ingest.";
+      setError(message);
     } finally {
       setIsIngesting(false);
       setProgress("");

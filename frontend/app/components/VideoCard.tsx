@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { VideoMetadata } from "@/app/types";
 
 type Props = {
@@ -44,10 +45,12 @@ export default function VideoCard({ video, label }: Props) {
       {/* Thumbnail */}
       {video.thumbnail && (
         <div className="relative aspect-video bg-gray-800">
-          <img
+          <Image
             src={video.thumbnail}
             alt={video.title}
-            className="w-full h-full object-cover"
+            fill
+            unoptimized
+            className="object-cover"
           />
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded">
             {Math.floor(video.duration_seconds / 60)}:

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { ChatMessage, SessionData } from "@/app/types";
+import type { ChatMessage, Citation, SessionData } from "@/app/types";
 
 type Store = {
   session: SessionData | null;
@@ -9,7 +9,7 @@ type Store = {
   error: string | null;
   setSession: (s: SessionData) => void;
   addMessage: (m: ChatMessage) => void;
-  updateLastMessage: (content: string, citations?: any[]) => void;
+  updateLastMessage: (content: string, citations?: Citation[]) => void;
   setIsIngesting: (v: boolean) => void;
   setIsChatLoading: (v: boolean) => void;
   setError: (e: string | null) => void;

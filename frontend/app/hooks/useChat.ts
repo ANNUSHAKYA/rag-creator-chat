@@ -1,4 +1,5 @@
 import { useStore } from "@/app/store/useStore";
+import type { Citation } from "@/app/types";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
@@ -33,7 +34,7 @@ export function useChat() {
     setError(null);
 
     let accumulated = "";
-    let citations: any[] = [];
+    let citations: Citation[] = [];
 
     try {
       const response = await fetch(`${API}/chat`, {
@@ -83,8 +84,9 @@ export function useChat() {
 
       // Final flush — attach citations
       updateLastMessage(accumulated, citations);
-    } catch (err: any) {
-      setError(err.message ?? "Something went wrong");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      setError(message);
       updateLastMessage("Sorry, something went wrong. Please try again.");
     } finally {
       setIsChatLoading(false);
