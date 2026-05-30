@@ -2,7 +2,7 @@ services:
   - type: web
     name: rag-creator-chat-backend
     env: python
-    buildCommand: pip install -r backend/requirements.txt
+    buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     plan: free
     envVars:
@@ -14,5 +14,7 @@ services:
         value: gemini
       - key: EMBEDDING_PROVIDER
         value: local
+      - key: PYTHONPATH
+        value: backend
       - key: PYTHON_VERSION
         value: 3.12.3
