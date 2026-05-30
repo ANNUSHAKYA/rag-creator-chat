@@ -1,10 +1,52 @@
 import os
+import time
 from typing import List, Dict, Any
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
+from langchain_core.embeddings import Embeddings
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+class RetryingGoogleEmbeddings(Embeddings):
+    """
+    Wrapper around GoogleGenerativeAIEmbeddings to support automatic retrying
+    with exponential backoff on rate limits (429s), and batching of requests
+    with a small delay to respect Google AI Studio free tier limits.
+    """
+    def __init__(self, google_api_key: str):
+        self.underlying = GoogleGenerativeAIEmbeddings(
+            model="gemini-embedding-001",
+            google_api_key=google_api_key
+        )
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        results = []
+        batch_size = 5
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i+batch_size]
+            batch_embeddings = self._embed_batch_with_retry(batch)
+            results.extend(batch_embeddings)
+            if i + batch_size < len(texts):
+                time.sleep(1.0)  # Rate limiting safety sleep
+        return results
+
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=2, min=2, max=10),
+        reraise=True
+    )
+    def _embed_batch_with_retry(self, batch: List[str]) -> List[List[float]]:
+        return self.underlying.embed_documents(batch)
+
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=2, min=2, max=10),
+        reraise=True
+    )
+    def embed_query(self, text: str) -> List[float]:
+        return self.underlying.embed_query(text)
 
 # Persistent ChromaDB directory — survives server restarts
 CHROMA_DIR = os.path.join(os.path.dirname(__file__), "../../.chroma")
@@ -19,10 +61,7 @@ def get_embeddings():
     provider = os.getenv("LLM_PROVIDER", "openai" if openai_key else "gemini")
 
     if provider == "gemini" and gemini_key:
-        return GoogleGenerativeAIEmbeddings(
-            model="gemini-embedding-001",
-            google_api_key=gemini_key
-        )
+        return RetryingGoogleEmbeddings(gemini_key)
     
     return OpenAIEmbeddings(
         model="text-embedding-3-small",
