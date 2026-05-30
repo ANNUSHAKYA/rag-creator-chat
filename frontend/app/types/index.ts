@@ -12,7 +12,7 @@ export type VideoMetadata = {
   follower_count: number | null;
   duration_seconds: number;
   upload_date: string;
-  hashtags: string;
+  hashtags: string | string[];
   thumbnail?: string;
 };
 

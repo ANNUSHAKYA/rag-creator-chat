@@ -104,8 +104,12 @@ export default function VideoCard({ video, label }: Props) {
         {/* Hashtags */}
         {video.hashtags && (
           <div className="flex flex-wrap gap-1">
-            {video.hashtags
-              .split(", ")
+            {(Array.isArray(video.hashtags)
+              ? video.hashtags
+              : typeof video.hashtags === "string"
+              ? video.hashtags.split(", ")
+              : []
+            )
               .filter(Boolean)
               .slice(0, 5)
               .map((tag) => (
