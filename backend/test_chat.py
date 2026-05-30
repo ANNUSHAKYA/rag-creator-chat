@@ -34,7 +34,13 @@ async def ask(question: str):
                         for c in citations:
                             print(f"  - Video {c['video_id']} chunk {c['chunk_index']}: {c['preview']}")
                     else:
-                        print(data, end="", flush=True)
+                        token = data
+                        if data.startswith('"') and data.endswith('"'):
+                            try:
+                                token = json.loads(data)
+                            except Exception:
+                                pass
+                        print(token, end="", flush=True)
 
 async def main():
     for q in QUESTIONS:

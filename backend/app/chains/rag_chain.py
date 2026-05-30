@@ -192,7 +192,7 @@ async def stream_rag_response(
         token = chunk.content
         if token:
             full_response += token
-            yield f"data: {token}\n\n"
+            yield f"data: {json.dumps(token)}\n\n"
 
     # Step 6 — Yield citations as a final SSE event
     citations = [

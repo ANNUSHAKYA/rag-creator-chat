@@ -76,7 +76,14 @@ export function useChat() {
             continue;
           }
 
-          accumulated += data;
+          let token = data;
+          if (data.startsWith('"') && data.endsWith('"')) {
+            try {
+              token = JSON.parse(data);
+            } catch {}
+          }
+
+          accumulated += token;
           // Re-render on every token
           updateLastMessage(accumulated);
         }
